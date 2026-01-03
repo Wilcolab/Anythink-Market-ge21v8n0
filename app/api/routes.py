@@ -12,6 +12,7 @@ from app.rate_limiter import limiter
 from starlette.requests import Request
 import logging
 import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,17 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     response: str
 
+def redact_sensitive_data(self, text):
+    """Redact sensitive information from text."""
+    patterns = {
+      'credit_card': r'\b(?:\d[ -]*){13,16}\b',
+      'email': r'[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}'
+    }
+    
+    for key, pattern in patterns.items():
+        text = re.sub(pattern, f'[REDACTED {key}]', text)
+    return text
+
 async def get_optional_user(authorization: Optional[str] = Header(None)):
     if not authorization:
         return None
@@ -78,6 +90,9 @@ async def secure_query(
     
     response = llm_service.generate_response(query, context)
     logger.info("[Response] %s", json.dumps(response))
+
+    if response is str:
+        response = redact_sensitive_data(response)
     
     return QueryResponse(response=response)
 
