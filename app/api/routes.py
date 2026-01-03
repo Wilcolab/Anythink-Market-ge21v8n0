@@ -13,6 +13,7 @@ from starlette.requests import Request
 import logging
 import json
 import re
+from textblob import TextBlob
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     response: str
 
-def redact_sensitive_data(self, text):
+def redact_sensitive_data(text):
     """Redact sensitive information from text."""
     patterns = {
       'credit_card': r'\b(?:\d[ -]*){13,16}\b',
@@ -57,6 +58,14 @@ def redact_sensitive_data(self, text):
     for key, pattern in patterns.items():
         text = re.sub(pattern, f'[REDACTED {key}]', text)
     return text
+
+def context_filter(response):
+  """Analyze and filter response based on sentiment polarity."""
+  polarity = TextBlob(response).sentiment.polarity
+  logger.info(f"context_filter: polarity was {polarity}")
+  if polarity < -0.1:
+    return "[Filtered due to negative sentiment]"
+  return response
 
 async def get_optional_user(authorization: Optional[str] = Header(None)):
     if not authorization:
@@ -91,8 +100,12 @@ async def secure_query(
     response = llm_service.generate_response(query, context)
     logger.info("[Response] %s", json.dumps(response))
 
-    if response is str:
-        response = redact_sensitive_data(response)
+    tmp = context_filter(response)
+    if response != tmp:
+        response = tmp
+        logger.info("[Response Filtered] %s", json.dumps(response))
+
+    response = redact_sensitive_data(response)
     
     return QueryResponse(response=response)
 
