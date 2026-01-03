@@ -10,6 +10,10 @@ from app.models.llm_service import LLMService
 from fastapi.security import OAuth2PasswordBearer
 from app.rate_limiter import limiter
 from starlette.requests import Request
+import logging
+import json
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 llm_service = LLMService()
@@ -63,6 +67,7 @@ async def secure_query(
     current_user: Optional[User] = Depends(get_optional_user)
 ):
     query = params.query
+    logger.info("[Query] %s", json.dumps(query))
     
     intent_tag = llm_service.interpret_user_intent(query)
     
@@ -72,6 +77,7 @@ async def secure_query(
         context = await get_context_for_intent(intent_tag, None)
     
     response = llm_service.generate_response(query, context)
+    logger.info("[Response] %s", json.dumps(response))
     
     return QueryResponse(response=response)
 
