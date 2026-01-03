@@ -98,6 +98,10 @@ document.addEventListener("DOMContentLoaded", function () {
           )}</div>`;
 
           responseContent.innerHTML = responseHTML;
+        } else if (response.status == 422) {
+            responseContent.innerHTML = `<p class="error-message">${
+              data.detail[0].msg || "An error occurred while processing your query."
+            }</p>`;
         } else if (responseContent) {
           responseContent.innerHTML = `<p class="error-message">${
             data.detail || "An error occurred while processing your query."
