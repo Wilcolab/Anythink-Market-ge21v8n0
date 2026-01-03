@@ -3,6 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.requests import Request
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.rate_limiter import limiter
 import asyncio
 import time
 import os
@@ -37,6 +40,10 @@ async def setup_db():
     logger.info("Database setup complete!")
 
 app = FastAPI(title="SecureInfo Concierge", description="Financial assistant application with LLM integration")
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded, _rate_limit_exceeded_handler
+)
 
 @app.on_event("startup")
 async def startup_event():
